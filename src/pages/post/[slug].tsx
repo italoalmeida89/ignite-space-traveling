@@ -47,9 +47,6 @@ const post = {
 
 export default function Post() {
 
-  console.log('post', post);
-
-
   return (
     <>
       <Head>

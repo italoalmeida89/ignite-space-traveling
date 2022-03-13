@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { GetStaticProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { Header } from '../components/Header';
 import { FiCalendar, FiClock, FiUser } from 'react-icons/fi';
-
+import Prismic from '@prismicio/client';
 import { getPrismicClient } from '../services/prismic';
-
+import { format } from 'date-fns';
 import commonStyles from '../styles/common.module.scss';
 import styles from './home.module.scss';
+import { ptBR } from 'date-fns/locale';
+import { calcReadTime } from '../utils';
 
 interface Post {
   uid?: string;
@@ -16,6 +19,7 @@ interface Post {
     title: string;
     subtitle: string;
     author: string;
+    readTime: number;
   };
 }
 
@@ -28,41 +32,13 @@ interface HomeProps {
   postsPagination: PostPagination;
 }
 
-const posts = [
-  {
-    uid: 'sdfsdf',
-    first_publication_date: '07/04/2021',
-    data: {
-      title: 'Título',
-      subtitle: 'Subtitulo ',
-      author: 'Autor',
-      readTime: '5'
-    }
-  },
-  {
-    uid: 'sdfsdf',
-    first_publication_date: '07/04/2021',
-    data: {
-      title: 'Título',
-      subtitle: 'Subtitulo ',
-      author: 'Autor',
-      readTime: '5'
-    }
-  },
-  {
-    uid: 'sdfsdf',
-    first_publication_date: '07/04/2021',
-    data: {
-      title: 'Título',
-      subtitle: 'Subtitulo ',
-      author: 'Autor',
-      readTime: '5'
-    }
-  }
-]
+export default function Home({
+  postsPagination: { next_page, results },
+}: HomeProps) {
 
-export default function Home() {
-  // TODO
+  const [posts, setPosts] = useState(results);
+  const [nextPage, setNextPage] = useState(next_page);
+
   return (
     <>
       <Head>
@@ -105,9 +81,43 @@ export default function Home() {
   )
 }
 
-// export const getStaticProps = async () => {
-//   // const prismic = getPrismicClient();
-//   // const postsResponse = await prismic.query(TODO);
+export const getStaticProps: GetStaticProps = async () => {
+  const prismic = getPrismicClient();
 
-//   // TODO
-// };
+  const postsResponse = await prismic.query(
+    [Prismic.predicates.at('document.type', 'posts')],
+    {
+      pageSize: 3,
+    }
+  );
+
+  const posts = postsResponse.results.map(post => {
+    return {
+      uid: post.uid,
+      first_publication_date: format(
+        new Date(post.first_publication_date),
+        'dd MMM yyyy',
+        {
+          locale: ptBR,
+        }
+      ),
+      data: {
+        title: post.data.title,
+        subtitle: post.data.subtitle,
+        author: post.data.author,
+        readTime: calcReadTime(post.data.content)
+      },
+    };
+  });
+
+  const postsPagination = {
+    next_page: postsResponse.next_page,
+    results: posts,
+  };
+
+  return {
+    props: {
+      postsPagination: postsPagination
+    },
+  };
+};
