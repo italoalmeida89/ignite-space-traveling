@@ -61,7 +61,7 @@ export default function Post({ post }: PostProps) {
 
           {post.data.content.map(content => {
             return (
-              <article >
+              <article key={content.heading}>
                 <h2>{content.heading}</h2>
 
                 {content.body[0].text}

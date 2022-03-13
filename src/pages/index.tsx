@@ -20,14 +20,32 @@ interface Post {
     subtitle: string;
     author: string;
     readTime: number;
+    content: [];
   };
 }
-
 interface PostPagination {
   next_page: string;
   results: Post[];
 }
 
+const formatPosts = (post: Post) => {
+  return {
+    uid: post.uid,
+    first_publication_date: format(
+      new Date(post.first_publication_date),
+      'dd MMM yyyy',
+      {
+        locale: ptBR,
+      }
+    ),
+    data: {
+      title: post.data.title,
+      subtitle: post.data.subtitle,
+      author: post.data.author,
+      readTime: calcReadTime(post.data.content)
+    },
+  };
+}
 interface HomeProps {
   postsPagination: PostPagination;
 }
@@ -38,6 +56,19 @@ export default function Home({
 
   const [posts, setPosts] = useState(results);
   const [nextPage, setNextPage] = useState(next_page);
+
+  async function handleMorePosts(): Promise<void> {
+    const response = await fetch(`${nextPage}`).then(response =>
+      response.json()
+    );
+
+    const morePosts = response.results.map((post: Post) => {
+      return formatPosts(post)
+    });
+
+    setPosts([...posts, ...morePosts]);
+    setNextPage(response.next_page);
+  }
 
   return (
     <>
@@ -72,7 +103,7 @@ export default function Home({
           ))}
         </div>
 
-        <button type="button">
+        <button type="button" onClick={handleMorePosts}>
           Carregar mais posts
         </button>
 
@@ -87,27 +118,12 @@ export const getStaticProps: GetStaticProps = async () => {
   const postsResponse = await prismic.query(
     [Prismic.predicates.at('document.type', 'posts')],
     {
-      pageSize: 3,
+      pageSize: 1,
     }
   );
 
   const posts = postsResponse.results.map(post => {
-    return {
-      uid: post.uid,
-      first_publication_date: format(
-        new Date(post.first_publication_date),
-        'dd MMM yyyy',
-        {
-          locale: ptBR,
-        }
-      ),
-      data: {
-        title: post.data.title,
-        subtitle: post.data.subtitle,
-        author: post.data.author,
-        readTime: calcReadTime(post.data.content)
-      },
-    };
+    return formatPosts(post)
   });
 
   const postsPagination = {
